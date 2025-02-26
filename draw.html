@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drawing App</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            overflow: hidden; /* Prevent scrolling */
+        }
+
+        .header {
+            display: flex;
+            justify-content: center; /* Center the title */
+            align-items: center; /* Center vertically */
+            padding: 10px 20px; /* Add some padding */
+            width: 100%; /* Ensure it takes full width */
+            box-sizing: border-box; /* Include padding in width calculation */
+        }
+
+        .header .back-arrow {
+            position: relative; /* Change to relative positioning */
+            text-decoration: none;
+            color: #007aff;
+            font-size: 24px;
+            margin-right: auto; /* Push the back arrow to the left */
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        canvas {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin: 20px 0;
+            width: 100%; /* Make canvas responsive */
+            height: 60vh; /* Set height to 60% of viewport height */
+        }
+
+        .color-picker {
+            width: 50px;
+            height: 50px;
+            padding: 0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .size-slider {
+            width: 150px;
+        }
+
+        .undo-button, .save-button, .clear-button {
+            padding: 10px 20px;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .clear-button {
+            background: #ff3b30;
+        }
+
+        .clear-button:hover {
+            background: #dc3027;
+        }
+
+        .undo-button {
+            background: #007aff;
+        }
+
+        .undo-button:hover {
+            background: #0066d6;
+        }
+
+        .save-button {
+            background: #34c759;
+        }
+
+        .save-button:hover {
+            background: #30b34f;
+        }
+
+        /* Add this to ensure the container has a defined width */
+        .container {
+            max-width: 800px; /* Set a max width for the container */
+            margin: 0 auto; /* Center the container */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="index.html" class="back-arrow">← Back</a>
+            <h1 style="margin: 0;">Drawing App</h1>
+        </div>
+        <div class="content">
+            <div class="controls">
+                <input type="color" class="color-picker" id="colorPicker" value="#000000">
+                <input type="range" class="size-slider" id="sizeSlider" min="1" max="50" value="5">
+                <button class="undo-button" id="undoButton">Undo</button>
+                <button class="save-button" id="saveButton">Save</button>
+                <button class="clear-button" id="clearButton">Clear Canvas</button>
+            </div>
+            <canvas id="drawingCanvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        const colorPicker = document.getElementById('colorPicker');
+        const sizeSlider = document.getElementById('sizeSlider');
+        const clearButton = document.getElementById('clearButton');
+        const undoButton = document.getElementById('undoButton');
+        const saveButton = document.getElementById('saveButton');
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let drawingStates = [];
+        let currentState = 0;
+
+        // Set canvas size
+        function resizeCanvas() {
+            const content = document.querySelector('.content');
+            const width = content.clientWidth - 40; // Account for padding
+            canvas.width = width;
+            canvas.height = width * 0.6; // 3:5 aspect ratio
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Drawing functions
+        function startDrawing(e) {
+            isDrawing = true;
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.strokeStyle = colorPicker.value;
+            ctx.lineWidth = sizeSlider.value;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+        }
+
+        function stopDrawing() {
+            if (isDrawing) {
+                saveState();
+            }
+            isDrawing = false;
+        }
+
+        // Event listeners
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        // Touch support
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousedown', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            const mouseEvent = new MouseEvent('mouseup', {});
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        // Save initial state
+        function saveState() {
+            drawingStates.push(canvas.toDataURL());
+            currentState = drawingStates.length - 1;
+        }
+
+        // Initial blank state
+        saveState();
+
+        // Undo function
+        undoButton.addEventListener('click', () => {
+            if (currentState > 0) {
+                currentState--;
+                const img = new Image();
+                img.src = drawingStates[currentState];
+                img.onload = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                };
+                drawingStates.length = currentState + 1;
+            }
+        });
+
+        // Save function
+        saveButton.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'drawing.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+
+        // Clear canvas with state saving
+        clearButton.addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            saveState();
+        });
+    </script>
+</body>
+</html> 
