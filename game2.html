@@ -219,8 +219,11 @@
             gameSpeed = 5;
             isGameOver = false;
             
+            // Position car in the middle of the road and ensure it's visible at the bottom
+            car.width = Math.min(50, roadWidth / 4); // Make car width responsive
+            car.height = Math.min(80, canvas.height / 8); // Make car height responsive
             car.x = canvas.width / 2 - car.width / 2;
-            car.y = canvas.height - 100;
+            car.y = canvas.height - car.height - 20; // Position 20px from bottom
             
             obstacles.length = 0;
             obstacleTimer = 0;
@@ -267,6 +270,10 @@
             if (keys.ArrowRight) {
                 car.x = Math.min(roadX + roadWidth - car.width, car.x + car.speed);
             }
+            
+            // Ensure car stays within the visible area
+            car.x = Math.max(roadX, Math.min(roadX + roadWidth - car.width, car.x));
+            car.y = Math.min(canvas.height - car.height - 10, car.y);
             
             // Update road markings
             for (const marking of roadMarkings) {
