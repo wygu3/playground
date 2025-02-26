@@ -19,12 +19,21 @@
             box-sizing: border-box; /* Include padding in width calculation */
         }
 
-        .header .back-arrow {
-            position: relative; /* Change to relative positioning */
-            text-decoration: none;
-            color: #007aff;
-            font-size: 24px;
-            margin-right: auto; /* Push the back arrow to the left */
+        .header .back-button {
+            margin-right: auto; /* Push the back button to the left */
+            padding: 10px 20px;
+            color: white;
+            background: #007aff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .header .back-button:hover {
+            background: #0066d6;
         }
 
         .controls {
@@ -103,7 +112,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <a href="index.html" class="back-arrow">← Back</a>
+            <button class="back-button" id="backButton">← Back</button>
             <h1 style="margin: 0;">Drawing App</h1>
         </div>
         <div class="content">
@@ -126,11 +135,17 @@
         const clearButton = document.getElementById('clearButton');
         const undoButton = document.getElementById('undoButton');
         const saveButton = document.getElementById('saveButton');
+        const backButton = document.getElementById('backButton');
         let isDrawing = false;
         let lastX = 0;
         let lastY = 0;
         let drawingStates = [];
         let currentState = 0;
+
+        // Back button functionality
+        backButton.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
 
         // Set canvas size
         function resizeCanvas() {
