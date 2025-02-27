@@ -223,7 +223,7 @@
             car.width = Math.min(50, roadWidth / 4); // Responsive width
             car.height = Math.min(80, canvas.height / 10); // Responsive height
             car.x = canvas.width / 2 - car.width / 2; // Center the car horizontally
-            car.y = canvas.height - car.height - 80; // Position 40px from the bottom
+            car.y = canvas.height - car.height - 200; // Position 40px from the bottom
             
             obstacles.length = 0;
             obstacleTimer = 0;
@@ -273,7 +273,7 @@
             
             // Ensure car stays within the visible area
             car.x = Math.max(roadX, Math.min(roadX + roadWidth - car.width, car.x));
-            car.y = canvas.height - car.height - 80; // Reposition from bottom
+            car.y = canvas.height - car.height - 200; // Reposition from bottom
             
             // Update road markings
             for (const marking of roadMarkings) {
@@ -390,20 +390,14 @@
             e.preventDefault();
             const touchX = e.touches[0].clientX;
             const diff = touchX - touchStartX;
-            
-            if (diff > 10) {
-                keys.ArrowRight = true;
-                keys.ArrowLeft = false;
-            } else if (diff < -10) {
-                keys.ArrowLeft = true;
-                keys.ArrowRight = false;
-            }
+
+            // Move the car based on touch position
+            car.x = Math.max(roadX, Math.min(roadX + roadWidth - car.width, touchX - car.width / 2));
         });
 
         canvas.addEventListener('touchend', (e) => {
             e.preventDefault();
-            keys.ArrowLeft = false;
-            keys.ArrowRight = false;
+            // No need to reset keys for touch controls
         });
         
         restartBtn.addEventListener('click', initGame);
