@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fishing Game</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #222;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            height: 100vh;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: row;
+        }
+        
+        #sidebar {
+            width: 200px;
+            background-color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+        }
+        
+        #game-title {
+            color: white;
+            font-size: clamp(24px, 5vw, 36px);
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+
+        #high-score {
+            color: gold;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        
+        #canvas-container {
+            flex-grow: 1;
+            position: relative;
+            background-color: #87CEEB;
+        }
+        
+        #game-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #score {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        #fish-inventory {
+            color: white;
+            margin-top: 20px;
+            width: 90%;
+            text-align: center;
+        }
+        
+        .fish-type {
+            margin-bottom: 5px;
+        }
+        
+        @media (max-width: 768px) {
+            #game-container {
+                flex-direction: column;
+            }
+            
+            #sidebar {
+                width: 100%;
+                padding: 10px 0;
+                flex-direction: row;
+                justify-content: space-around;
+                height: auto;
+            }
+
+            #game-title {
+                margin: 0;
+            }
+
+            #high-score {
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="sidebar">
+            <div id="game-title">FISHING</div>
+            <div id="high-score">High Score: 0</div>
+            <button id="back-btn">Back</button>
+            <div id="fish-inventory">
+                <h3>Fish Caught:</h3>
+                <div class="fish-type" id="small-fish">Small Fish: 0</div>
+                <div class="fish-type" id="medium-fish">Medium Fish: 0</div>
+                <div class="fish-type" id="large-fish">Large Fish: 0</div>
+            </div>
+        </div>
+        <div id="canvas-container">
+            <canvas id="game-canvas" width="400" height="600"></canvas>
+            <div id="score">0</div>
+            <div id="game-over">
+                <h2>Game Over</h2>
+                <p id="final-score">Score: 0</p>
+                <p id="fish-summary">Fish Caught: 0</p>
+                <button id="restart-btn">Play Again</button>
+                <button id="back-btn-game-over">Back</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const highScoreElement = document.getElementById('high-score');
+        const gameOverScreen = document.getElementById('game-over');
+        const finalScoreElement = document.getElementById('final-score');
+        const fishSummaryElement = document.getElementById('fish-summary');
+        const restartBtn = document.getElementById('restart-btn');
+        const backBtnGameOver = document.getElementById('back-btn-game-over');
+        const backBtn = document.getElementById('back-btn');
+        const smallFishElement = document.getElementById('small-fish');
+        const mediumFishElement = document.getElementById('medium-fish');
+        const largeFishElement = document.getElementById('large-fish');
+        
+        // Game variables
+        let score = 0;
+        let highScore = localStorage.getItem('fishingHighScore') || 0;
+        let isGameOver = false;
+        let gameInterval;
+        const FRAME_RATE = 60;
+        const FRAME_INTERVAL = 1000 / FRAME_RATE;
+        
+        // Fishing rod variables
+        const rod = {
+            x: canvas.width / 2, // Center the rod horizontally
+            y: 50, // Fixed position from the top
+            length: 50, // Start with minimum length
+            angle: Math.PI / 2, // Starting angle (pointing down)
+            hookSize: 8,
+            reeling: false,
+            castingOut: false,
+            swinging: true,
+            castSpeed: 0.02,
+            reelingSpeed: 3,
+            castingSpeed: 3,
+            maxLength: canvas.height - 50, // Set max length to reach near the bottom
+            minLength: 50
+        };
+        
+        // Fish variables
+        const fishes = [];
+        const fishTypes = [
+            { type: 'small', width: 30, height: 15, speed: 2, points: 10, color: '#88CCFF' },
+            { type: 'medium', width: 45, height: 25, speed: 1.5, points: 25, color: '#FFCC00' },
+            { type: 'large', width: 60, height: 35, speed: 1, points: 50, color: '#FF6600' }
+        ];
+        
+        // Fish caught counter
+        const fishCaught = {
+            small: 0,
+            medium: 0,
+            large: 0
+        };
+        
+        // Game time limit (in seconds)
+        const GAME_TIME_LIMIT = 60;
+        let timeRemaining = GAME_TIME_LIMIT;
+        
+        // Update canvas dimensions
+        function updateCanvasDimensions() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = window.innerHeight;
+            
+            // Adjust rod position based on new dimensions
+            rod.x = canvas.width / 2; // Center the rod
+            rod.y = 50; // Position from top
+            rod.maxLength = canvas.height - rod.y; // Max length to reach bottom
+        }
+        
+        // Initialize game
+        function initGame() {
+            updateCanvasDimensions();
+            score = 0;
+            timeRemaining = GAME_TIME_LIMIT;
+            isGameOver = false;
+            
+            // Reset rod
+            rod.length = 150;
+            rod.angle = Math.PI / 2;
+            rod.reeling = false;
+            
+            // Reset fish
+            fishes.length = 0;
+            
+            // Reset fish caught
+            fishCaught.small = 0;
+            fishCaught.medium = 0;
+            fishCaught.large = 0;
+            updateFishInventory();
+            
+            // Update score display
+            scoreElement.textContent = score;
+            highScoreElement.textContent = `High Score: ${highScore}`;
+            
+            gameOverScreen.style.display = 'none';
+            
+            // Clear any existing interval
+            if (gameInterval) {
+                clearInterval(gameInterval);
+            }
+            
+            // Start game loop
+            gameInterval = setInterval(gameLoop, FRAME_INTERVAL);
+            
+            // Generate initial fish
+            for (let i = 0; i < 10; i++) {
+                createFish();
+            }
+        }
+        
+        // Create a new fish
+        function createFish() {
+            const fishType = fishTypes[Math.floor(Math.random() * fishTypes.length)];
+            const direction = Math.random() > 0.5 ? 1 : -1; // 1 for right, -1 for left
+            
+            fishes.push({
+                x: direction > 0 ? -fishType.width : canvas.width + fishType.width,
+                y: Math.random() * (canvas.height - 150) + 150, // Keep fish below water surface
+                width: fishType.width,
+                height: fishType.height,
+                speed: fishType.speed * direction,
+                points: fishType.points,
+                type: fishType.type,
+                color: fishType.color,
+                caught: false
+            });
+        }
+        
+        // Update fish inventory display
+        function updateFishInventory() {
+            smallFishElement.textContent = `Small Fish: ${fishCaught.small}`;
+            mediumFishElement.textContent = `Medium Fish: ${fishCaught.medium}`;
+            largeFishElement.textContent = `Large Fish: ${fishCaught.large}`;
+        }
+        
+        // Calculate hook position
+        function getHookPosition() {
+            // Make the line primarily point downward with slight left-right movement
+            const swingOffset = Math.sin(Date.now() / 1000) * 30; // Swing 30px left and right
+            const hookX = rod.x + (rod.swinging ? swingOffset : 0);
+            const hookY = rod.y + rod.length;
+            return { x: hookX, y: hookY };
+        }
+        
+        // Update game state
+        function update() {
+            if (isGameOver) return;
+            
+            // Update time remaining
+            timeRemaining -= 1/60; // Decrease by 1/60th of a second each frame
+            if (timeRemaining <= 0) {
+                gameOver();
+                return;
+            }
+            
+            // Update rod angle (swinging back and forth)
+            if (rod.swinging) {
+                rod.angle = Math.PI/2;
+            }
+            
+            // Handle reeling in
+            if (rod.reeling) {
+                rod.length = Math.max(rod.minLength, rod.length - rod.reelingSpeed);
+                if (rod.length <= rod.minLength) {
+                    rod.reeling = false;
+                    rod.swinging = true; // Resume swinging when fully reeled in
+                }
+            }
+            
+            // Handle casting out
+            if (rod.castingOut) {
+                rod.length = Math.min(rod.maxLength, rod.length + rod.castingSpeed);
+                if (rod.length >= rod.maxLength) {
+                    rod.castingOut = false;
+                }
+            }
+            
+            // Get current hook position
+            const hookPos = getHookPosition();
+            
+            // Update fish positions
+            for (let i = fishes.length - 1; i >= 0; i--) {
+                const fish = fishes[i];
+                
+                if (fish.caught) {
+                    // Move caught fish with the hook
+                    fish.x = hookPos.x - fish.width / 2;
+                    fish.y = hookPos.y;
+                    
+                    // If fish reaches the top or rod is fully reeled in, add to score and remove
+                    if (fish.y <= rod.y + 20 || rod.length <= rod.minLength) {
+                        score += fish.points;
+                        scoreElement.textContent = score;
+                        
+                        // Increment fish caught counter
+                        fishCaught[fish.type]++;
+                        updateFishInventory();
+                        
+                        fishes.splice(i, 1);
+                        
+                        // Create a new fish to replace the caught one
+                        createFish();
+                    }
+                } else {
+                    // Move fish horizontally
+                    fish.x += fish.speed;
+                    
+                    // Remove fish if it goes off screen
+                    if ((fish.speed > 0 && fish.x > canvas.width + fish.width) || 
+                        (fish.speed < 0 && fish.x < -fish.width)) {
+                        fishes.splice(i, 1);
+                        createFish();
+                        continue;
+                    }
+                    
+                    // Check if hook catches fish
+                    const hookDistance = Math.sqrt(
+                        Math.pow(hookPos.x - (fish.x + fish.width / 2), 2) + 
+                        Math.pow(hookPos.y - (fish.y + fish.height / 2), 2)
+                    );
+                    
+                    if (hookDistance < fish.width / 2 + rod.hookSize && rod.reeling) {
+                        fish.caught = true;
+                    }
+                }
+            }
+        }
+        
+        // Draw game elements
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw sky (first, as background)
+            ctx.fillStyle = '#87CEEB'; // Sky blue
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw water (on top of sky, below the surface)
+            ctx.fillStyle = '#1E90FF'; // Deeper blue for water
+            ctx.fillRect(0, 100, canvas.width, canvas.height);
+            
+            // Draw fish
+            for (const fish of fishes) {
+                ctx.fillStyle = fish.color;
+                
+                // Draw fish body
+                ctx.beginPath();
+                if (fish.speed > 0) { // Fish swimming right
+                    ctx.ellipse(fish.x + fish.width / 2, fish.y + fish.height / 2, 
+                               fish.width / 2, fish.height / 2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Tail
+                    ctx.beginPath();
+                    ctx.moveTo(fish.x, fish.y + fish.height / 2);
+                    ctx.lineTo(fish.x - fish.width / 4, fish.y);
+                    ctx.lineTo(fish.x - fish.width / 4, fish.y + fish.height);
+                    ctx.lineTo(fish.x, fish.y + fish.height / 2);
+                    ctx.fill();
+                    
+                    // Eye
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath();
+                    ctx.arc(fish.x + fish.width * 0.7, fish.y + fish.height * 0.3, 
+                           fish.width * 0.1, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = 'black';
+                    ctx.beginPath();
+                    ctx.arc(fish.x + fish.width * 0.7, fish.y + fish.height * 0.3, 
+                           fish.width * 0.05, 0, Math.PI * 2);
+                    ctx.fill();
+                } else { // Fish swimming left
+                    ctx.fillStyle = fish.color;
+                    ctx.beginPath();
+                    ctx.ellipse(fish.x + fish.width / 2, fish.y + fish.height / 2, 
+                               fish.width / 2, fish.height / 2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Tail
+                    ctx.beginPath();
+                    ctx.moveTo(fish.x + fish.width, fish.y + fish.height / 2);
+                    ctx.lineTo(fish.x + fish.width + fish.width / 4, fish.y);
+                    ctx.lineTo(fish.x + fish.width + fish.width / 4, fish.y + fish.height);
+                    ctx.lineTo(fish.x + fish.width, fish.y + fish.height / 2);
+                    ctx.fill();
+                    
+                    // Eye
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath();
+                    ctx.arc(fish.x + fish.width * 0.3, fish.y + fish.height * 0.3, 
+                           fish.width * 0.1, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = 'black';
+                    ctx.beginPath();
+                    ctx.arc(fish.x + fish.width * 0.3, fish.y + fish.height * 0.3, 
+                           fish.width * 0.05, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            
+            // Draw fishing rod base
+            ctx.fillStyle = '#8B4513'; // Brown
+            ctx.fillRect(rod.x - 5, rod.y - 40, 10, 40);
+            
+            // Draw fishing line
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(rod.x, rod.y); // Start from the rod's base
+            const hookPos = getHookPosition(); // Get the current hook position
+            ctx.lineTo(hookPos.x, hookPos.y); // Draw line to the hook position
+            ctx.stroke();
+            
+            // Draw hook
+            ctx.fillStyle = 'silver';
+            ctx.beginPath();
+            ctx.arc(hookPos.x, hookPos.y, rod.hookSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw time remaining
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Time: ${Math.ceil(timeRemaining)}s`, 10, 30);
+        }
+        
+        // Game loop
+        function gameLoop() {
+            if (!isGameOver) {
+                update();
+                draw();
+            } else {
+                clearInterval(gameInterval);
+            }
+        }
+        
+        // Game over
+        function gameOver() {
+            isGameOver = true;
+            clearInterval(gameInterval);
+            
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('fishingHighScore', highScore);
+                highScoreElement.textContent = `High Score: ${highScore}`;
+            }
+            
+            const totalFish = fishCaught.small + fishCaught.medium + fishCaught.large;
+            finalScoreElement.textContent = `Score: ${score}`;
+            fishSummaryElement.textContent = `Fish Caught: ${totalFish} (${fishCaught.small} small, ${fishCaught.medium} medium, ${fishCaught.large} large)`;
+            
+            gameOverScreen.style.display = 'flex';
+        }
+        
+        // Event listeners
+        canvas.addEventListener('click', () => {
+            if (isGameOver) return;
+            
+            if (rod.swinging) {
+                // Start casting out
+                rod.swinging = false;
+                rod.castingOut = true;
+            } else if (rod.castingOut) {
+                // Stop casting out and start reeling
+                rod.castingOut = false;
+                rod.reeling = true;
+            } else if (!rod.reeling) {
+                // Start reeling if not already reeling
+                rod.reeling = true;
+            }
+        });
+        
+        restartBtn.addEventListener('click', initGame);
+        
+        backBtnGameOver.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+        
+        backBtn.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', updateCanvasDimensions);
+        
+        // Start the game
+        initGame();
+    </script>
+</body>
+</html>
