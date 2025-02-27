@@ -159,10 +159,13 @@
         // Game variables
         let score = 0;
         let highScore = localStorage.getItem('highScore') || 0;
-        let gameSpeed = 5;
+        let gameSpeed = 10;
         let roadWidth;
         let roadX;
         let isGameOver = false;
+        let gameInterval;
+        const FRAME_RATE = 60; // Target 60 FPS
+        const FRAME_INTERVAL = 1000 / FRAME_RATE; // Milliseconds per frame
         
         // Update canvas dimensions
         function updateCanvasDimensions() {
@@ -216,7 +219,7 @@
         function initGame() {
             updateCanvasDimensions();
             score = 0;
-            gameSpeed = 5;
+            gameSpeed = 8;
             isGameOver = false;
             
             // Position car in the middle of the road and ensure it's visible at the bottom
@@ -232,7 +235,14 @@
             highScoreElement.textContent = `High Score: ${highScore}`;
             
             gameOverScreen.style.display = 'none';
-            requestAnimationFrame(gameLoop);
+            
+            // Clear any existing interval
+            if (gameInterval) {
+                clearInterval(gameInterval);
+            }
+            
+            // Start game loop with fixed interval
+            gameInterval = setInterval(gameLoop, FRAME_INTERVAL);
         }
         
         // Create obstacle
@@ -253,13 +263,13 @@
         function update() {
             if (isGameOver) return;
             
-            // Update score
-            score++;
+            // Update score faster
+            score += 2;
             scoreElement.textContent = score;
             
-            // Gradually increase speed
-            if (score % 500 === 0) {
-                gameSpeed += 0.5;
+            // Gradually increase speed more aggressively
+            if (score % 300 === 0) {
+                gameSpeed += 0.8;
             }
             
             // Update car position
@@ -347,17 +357,18 @@
         
         // Game loop
         function gameLoop() {
-            update();
-            draw();
-            
             if (!isGameOver) {
-                requestAnimationFrame(gameLoop);
+                update();
+                draw();
+            } else {
+                clearInterval(gameInterval);
             }
         }
         
         // Game over
         function gameOver() {
             isGameOver = true;
+            clearInterval(gameInterval);
             if (score > highScore) {
                 highScore = score;
                 localStorage.setItem('highScore', highScore);
