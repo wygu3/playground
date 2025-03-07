@@ -290,10 +290,15 @@
             
             // Continue main track after split
             ctx.fillRect(mainTrackX - trackWidth / 2, splitPoint, trackWidth, canvasHeight - splitPoint);
-
+            
+            // Draw sleepers on main track after split
+            for (let i = splitPoint; i < canvasHeight; i += sleeperSpacing) {
+                ctx.fillRect(mainTrackX - trackWidth / 2 - 10, i, trackWidth + 20, sleeperSpacing * 0.3);
+            }
+            
             // Right fork after split
-            const forkAngle = Math.atan2(canvasHeight * 0.3, canvasWidth * 0.4); // Adjusted angle for better fork direction
-            const forkLength = Math.sqrt(Math.pow(canvasWidth * 0.4, 2) + Math.pow(canvasHeight * 0.3, 2));
+            const forkAngle = Math.atan2(canvasWidth * 0.2, canvasWidth - mainTrackX);
+            const forkLength = Math.sqrt(Math.pow(canvasWidth - mainTrackX, 2) + Math.pow(canvasWidth * 0.2, 2));
             
             ctx.save();
             ctx.translate(mainTrackX, splitPoint);
@@ -301,9 +306,9 @@
             ctx.fillStyle = '#555';
             ctx.fillRect(-trackWidth / 2, 0, trackWidth, forkLength);
             
-            // Draw sleepers on right fork - improved positioning
+            // Draw sleepers on right fork
             ctx.fillStyle = '#8B4513';
-            for (let i = sleeperSpacing; i < forkLength; i += sleeperSpacing) {
+            for (let i = 0; i < forkLength; i += sleeperSpacing) {
                 ctx.fillRect(-trackWidth / 2 - 10, i, trackWidth + 20, sleeperSpacing * 0.3);
             }
             ctx.restore();
@@ -363,18 +368,22 @@
             const personColor = `hsl(${(dilemmaCount * 30) % 360}, 100%, 50%)`; // Vary color based on dilemma count
             drawPeople(mainTrackX, mainTrackPeopleY, scenario.leftCount, personSize, personColor);
             
-            // Draw people on forked track - adjusted position to be on the track
+            // Draw people on forked track - properly positioned on the track
             if (typeof scenario.rightCount === 'number') {
-                // Calculate a better position along the forked track
-                const positionRatio = 0.8; // Position 80% along the forked track
-                const rightX = mainTrackX + (forkEndX - mainTrackX) * positionRatio;
-                const rightY = splitPoint + (forkEndY - splitPoint) * positionRatio;
+                // Calculate position along the forked track
+                const positionRatio = 0.7; // Position 70% along the forked track
+                
+                // Calculate the exact position on the angled track
+                const rightX = mainTrackX + Math.cos(forkAngle) * (forkLength * positionRatio);
+                const rightY = splitPoint + Math.sin(forkAngle) * (forkLength * positionRatio);
+                
                 drawPeople(rightX, rightY, scenario.rightCount, personSize, personColor);
             } else {
-                // Draw question mark for uncertain scenario - also adjusted
-                const positionRatio = 0.8;
-                const rightX = mainTrackX + (forkEndX - mainTrackX) * positionRatio;
-                const rightY = splitPoint + (forkEndY - splitPoint) * positionRatio;
+                // Draw question mark for uncertain scenario
+                const positionRatio = 0.7;
+                const rightX = mainTrackX + Math.cos(forkAngle) * (forkLength * positionRatio);
+                const rightY = splitPoint + Math.sin(forkAngle) * (forkLength * positionRatio);
+                
                 ctx.fillStyle = '#000';
                 ctx.font = `${personSize * 3}px Arial`;
                 ctx.fillText('?', rightX, rightY);
